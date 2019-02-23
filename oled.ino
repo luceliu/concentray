@@ -17,7 +17,8 @@ Countimer breakTimer;
 int pomodoro = 1;
 bool onBreak = false;
 bool displayedText = false;
-int pomosUntilBreak = 4;
+bool haveWorkedOnMultiple = false;
+int pomosUntilBreak = 3;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -40,10 +41,10 @@ void setup() {
   // drawing commands to make them visible on screen!
   display.display();
   delay(2000);
-  timer.setCounter(0, 0, 5, timer.COUNT_DOWN, onComplete);
+  timer.setCounter(0, 0, 3, timer.COUNT_DOWN, onComplete);
   timer.setInterval(refreshClock, 1000);
 
-      breakTimer.setCounter(0, 0, 3, breakTimer.COUNT_DOWN, onBreakComplete);
+      breakTimer.setCounter(0, 0, 2, breakTimer.COUNT_DOWN, onBreakComplete);
     breakTimer.setInterval(refreshBreakClock, 1000);
 }
 
@@ -58,10 +59,16 @@ void refreshBreakClock() {
 }
 
 void onComplete() {
+    if (pomodoro % pomosUntilBreak == 0 && !haveWorkedOnMultiple) {
+    haveWorkedOnMultiple=true;
+    Serial.println("Set haveWorkedOnMultiple to True");
+    return;
+  }
   Serial.print("Pomodoro ");
   Serial.print(pomodoro);
   Serial.println(" Complete!");
   pomodoro++;
+
 }
 
 void onBreakComplete(){
@@ -70,7 +77,12 @@ void onBreakComplete(){
   onBreak=false;
   breakTimer.restart();
   delay(100);
+  haveWorkedOnMultiple = false;
   pomodoro++;
+}
+
+bool timeForBreak() {
+  return ((pomodoro % pomosUntilBreak == 0) && pomodoro > 0 && haveWorkedOnMultiple);
 }
 
 void loop() {
@@ -79,8 +91,12 @@ void loop() {
   display.setTextSize(2); // Draw 2X-scale text
   display.setTextColor(WHITE);
   display.setCursor(10, 0);
-
-
+  if (timeForBreak() && !onBreak) {
+    onBreak=true;
+    Serial.println("Started break :-)");
+    displayedText=false;
+    delay(100);
+  }
   if (!onBreak) {
       if (displayedText==false) {
     display.clearDisplay();
@@ -107,16 +123,6 @@ void loop() {
     displayedText=false;
     delay(500);
     timer.restart();
-  }
-
-  if ((pomodoro % pomosUntilBreak == 0) && pomodoro > 0) {
-    onBreak=true;
-    Serial.println(pomodoro);
-    Serial.println(pomosUntilBreak);
-    Serial.println(pomodoro % pomosUntilBreak);
-    Serial.println("Started break :-)");
-    displayedText=false;
-    delay(100);
   }
  }
 
