@@ -13,12 +13,14 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 Countimer timer; 
 Countimer breakTimer;
+Countimer miniTimer;
 
 int pomodoro = 1;
 bool onBreak = false;
+bool onMiniBreak = false;
 bool displayedText = false;
 bool haveWorkedOnMultiple = false;
-int pomosUntilBreak = 3;
+int pomosUntilSuperBreak = 3;
 
 //PIP'S CODE
 int analogPin= 3;
@@ -53,6 +55,9 @@ void setup() {
 
       breakTimer.setCounter(0, 0, 2, breakTimer.COUNT_DOWN, onBreakComplete);
     breakTimer.setInterval(refreshBreakClock, 1000);
+
+          miniTimer.setCounter(0, 0, 2, miniTimer.COUNT_DOWN, onMiniBreakComplete);
+    miniTimer.setInterval(refreshBreakClock, 1000);
 }
 
 void refreshClock() {
@@ -66,7 +71,7 @@ void refreshBreakClock() {
 }
 
 void onComplete() {
-    if (pomodoro % pomosUntilBreak == 0 && !haveWorkedOnMultiple) {
+    if (pomodoro % pomosUntilSuperBreak == 0 && !haveWorkedOnMultiple) {
     haveWorkedOnMultiple=true;
     Serial.println("Set haveWorkedOnMultiple to True");
     return;
@@ -75,11 +80,14 @@ void onComplete() {
   Serial.print(pomodoro);
   Serial.println(" Complete!");
   pomodoro++;
-
+  if (!timeForBreak()) {
+    Serial.println("not time for a super break, just a regular break");
+      onMiniBreak=true;
+  }
 }
 
 void onBreakComplete(){
-  Serial.println("Break over!");
+  Serial.println("Long ass break over!");
   displayedText=false;
   onBreak=false;
   breakTimer.restart();
@@ -88,8 +96,17 @@ void onBreakComplete(){
   pomodoro++;
 }
 
+void onMiniBreakComplete() {
+  Serial.println("Break over!");
+  displayedText=false;
+  onMiniBreak=false;
+  miniTimer.restart();
+  delay(100);
+  pomodoro++;
+}
+
 bool timeForBreak() {
-  return ((pomodoro % pomosUntilBreak == 0) && pomodoro > 0 && haveWorkedOnMultiple);
+  return ((pomodoro % pomosUntilSuperBreak == 0) && pomodoro > 0 && haveWorkedOnMultiple);
 }
 
 void loop() {
@@ -97,13 +114,14 @@ void loop() {
   display.setTextSize(2); // Draw 2X-scale text
   display.setTextColor(WHITE);
   display.setCursor(10, 0);
-  if (timeForBreak() && !onBreak) {
+  // is it time for the long ass break?
+  if (timeForBreak() && !onBreak && !onMiniBreak) {
     onBreak=true;
-    Serial.println("Started break :-)");
+    Serial.println("Started super break :-)");
     displayedText=false;
     delay(100);
   }
-  if (!onBreak) {
+  if (!onBreak && !onMiniBreak) {
       if (displayedText==false) {
     display.clearDisplay();
     display.print(F("Pomodoro: "));
@@ -147,7 +165,7 @@ void loop() {
     if (onBreak) {
       if (displayedText==false) {
         display.clearDisplay();
-        display.print(F("BREAK!"));
+        display.print(F("SUPER BREAK!"));
         display.display();
         delay(2000);
         display.clearDisplay();
@@ -171,6 +189,36 @@ void loop() {
     }
       display.clearDisplay();
   display.println(breakTimer.getCurrentTime());
+  display.display();      // Show initial text
+  delay(100);
+  } 
+  else if (onMiniBreak) {
+          if (displayedText==false) {
+        display.clearDisplay();
+        display.print(F("Mini Break"));
+        display.display();
+        delay(2000);
+        display.clearDisplay();
+        displayedText=true;
+      }
+
+    float raw = 0;
+    raw = analogRead(analogPin);
+        if (raw < thres) {
+          digitalWrite(led, LOW);
+          miniTimer.run();
+          Serial.println("No phone; starting break timer");
+        } else {
+          digitalWrite(led,HIGH);
+          Serial.println("Phone is on - stopping break timer");
+        }
+   
+
+      if(!miniTimer.isCounterCompleted()) {
+      miniTimer.start();
+    }
+      display.clearDisplay();
+  display.println(miniTimer.getCurrentTime());
   display.display();      // Show initial text
   delay(100);
   }
